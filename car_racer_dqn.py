@@ -3,6 +3,7 @@
 import gym
 import random
 import time
+import sys
 from collections import deque
 import numpy as np
 from keras import losses
@@ -40,25 +41,25 @@ def calculate_epsilon(decay_period, steps_taken, min_epsilon):
     return max(min_epsilon, 1. - (step_size * steps_taken))
 
 def train_model(env):
-    NUM_EPISODES = int(4)
-    #NUM_EPISODES = int(4e5)
+    NUM_EPISODES = int(4e5)
     TIME_STEPS = int(1e6)
     memories = deque(maxlen=int(1e6))
     NUM_ACTIONS = env.action_space.n
     GAMMA = 0.99
-    EPSILON_DECAY_PERIOD = 2e5
+    EPSILON_DECAY_PERIOD = int(2e5)
     MIN_EPSILON = 0.1
     C = 1000
     BATCH_SIZE = 32
     SEQ_LEN = 4
     f_recent = deque(maxlen=SEQ_LEN)
     losses = []
-    MAX_FRAMES = 10e6
+    MAX_FRAMES = int(10e6)
     frames_played = 0
     
     q_model = init_model()
     target_q_model = init_model()
-    out_file = open("car-{}.out".format(time.time()), "w+")
+    file_prefix = "car-{}".format(time.time())
+    out_file = open("{}.out".format(file_prefix), "w+", buffering=1)
 
     for i_episode in range(NUM_EPISODES):
         if frames_played >= MAX_FRAMES:
@@ -91,6 +92,12 @@ def train_model(env):
             f_recent.append(s_t_next)
             phi_t_next = np.stack(np.array(f_recent), axis=-1)
             mem = (phi_t, action, reward, phi_t_next, terminal)
+            size = sys.getsizeof(mem)
+            print(phi_t.shape)
+            for obj in mem:
+                print("i:", sys.getsizeof(obj))
+                size += sys.getsizeof(obj)
+            print("size:", size)
             memories.append(mem)
             s_t = s_t_next
             phi_t = phi_t_next
@@ -129,7 +136,8 @@ def train_model(env):
     env.close()
     out_file.close()
 
-    plt.plot(list(range(len(losses))), losses)
+    plt.plot(list(range(len(losses))), losses, marker="o")
+    plt.savefig("{}.png".format(file_prefix))
 
 if __name__ == "__main__":
     env = gym.make("Breakout-v0")
